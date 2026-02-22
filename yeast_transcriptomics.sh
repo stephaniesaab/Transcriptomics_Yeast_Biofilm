@@ -1,0 +1,14 @@
+#Transcriptomics.sh
+#Installed SRA toolkit
+wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
+tar -xzf sratoolkit.current-ubuntu64.tar.gz
+#Can get the interactive window of SRA toolkit with:
+./vdb-config -i
+
+#CD to SRA toolkit bin folder and run:
+./prefetch --option-file ~/bioproject_result.txt
+
+#Move the SRA files to a directory in the repo: SRA_files
+
+#Split the SRA files into FASTQ files:
+ ~/sratoolkit.3.3.0-ubuntu64/bin/fasterq-dump --split-files SRA_files/SRR*
