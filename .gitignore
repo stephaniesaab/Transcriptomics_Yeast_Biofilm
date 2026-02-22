@@ -1,0 +1,5 @@
+*.sra
+*.fastq
+*.gz
+SRA_files*/
+Supp_data*/
