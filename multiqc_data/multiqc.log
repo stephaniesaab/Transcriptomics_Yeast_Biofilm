@@ -1,0 +1,3 @@
+[2026-02-22 13:48:04,263] multiqc.core.version_check                         [WARNING]  MultiQC Version v1.33 now available!
+[2026-02-22 13:48:04,264] multiqc.core.file_search                           [INFO   ]  Search path: /home/saabstep/binf_class_6110/Transcriptomics_Yeast_Biofilm/fastqc_results
+[2026-02-22 13:48:04,589] multiqc.modules.fastqc.fastqc                      [INFO   ]  Found 9 reports
