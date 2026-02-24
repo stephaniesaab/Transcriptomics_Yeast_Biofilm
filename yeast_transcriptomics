@@ -2,9 +2,11 @@
 
 #Tools used
 #1) SRA toolkit
-#2) fastqc
-#3) MultiQC
-
+#2) datasets (ncbi)
+#3) fastqc
+#4) MultiQC
+#5) Salmon - Preparing Counts
+#6) Tximport - Move things from command line into R, aggregate transcript-level data to gene level
 
 #Installed SRA toolkit
 wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
@@ -19,6 +21,24 @@ tar -xzf sratoolkit.current-ubuntu64.tar.gz
 
 #Split the SRA files into FASTQ files:
  ~/sratoolkit.3.3.0-ubuntu64/bin/fasterq-dump --split-files SRA_files/SRR*
+
+#Download reference genome:
+conda activate ncbi_datasets
+
+#Make a folder for all the reference sequences
+mkdir refseqs && cd refseqs
+
+#Strain specific genome (not a reference genome, 69 contigs, no chromosomes) (from the paper)
+datasets download genome accession GCA_003046745.1 --include gff3,rna,cds,protein,genome,seq-report
+
+#Reference genome for yeast strain 288C:
+datasets download genome accession GCF_000146045.2 --include gff3,rna,cds,protein,genome,seq-report
+
+#Get Transcriptome from Ensembl
+wget http://ftp.ensemblgenomes.org/pub/fungi/current/fasta/saccharomyces_cerevisiae/cdna/Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz
+
+# Genome to create decoy index
+wget http://ftp.ensemblgenomes.org/pub/fungi/current/fasta/saccharomyces_cerevisiae/dna/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz
 
 #Make git ignore file and add txt with files to ignore
 touch .gitignore
@@ -38,7 +58,51 @@ fastqc SRA_files/SRA_FastQ/*.fastq -o fastqc_results -t 10
 #Combine reports into one with multiqc
 multiqc fastqc_results/
 
-#Improve the quality
+#Get a list of the sample names without the .fastq
+ls ../SRA_files/SRA_FastQ/* | xargs -n 1 basename -s .fastq > samples.txt
 
-#Alignment
-#Quantification
+#Running Salmon:
+
+#Create concatenated transcriptome and genome reference file:
+cat Saccharomyces_cerevisiae.R64-1-1.cdna.all.fa.gz Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz > gentrome.fa.gz
+
+#Create decoy list (text file that lists specific sequence identifiers from a genome that should be treated as decoys during indexing/quantification)
+#Decoy sequences are genomic regions that resembly but are not annotated transcripts you're quantifying
+# - split the dna file by column instead of lines
+# - remove the > character before adding to txt
+grep "^>" <(gunzip -c Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz) | cut -d " " -f 1 | sed 's/>//g' > decoys.txt
+
+#Build the index in the folder yeast_index
+#Need to provide:
+#-t = path to transcript fasta (gentrome)
+#-i = name of outdir
+#-kmerLen 31 = kmers of size 31 (max)
+#-p = threads
+#-d = decoys
+salmon index -t gentrome.fa.gz -d decoys.txt -p 10 -i yeast_index --kmerLen 31
+
+#Quantify reads against that index with Salmon
+mkdir salmon_output
+
+#Mapping based mode -> Faster and more accurate than alignment based modes
+#-i = Salmon index we made (yeast_index)
+#-r = We have single end reads from raw data
+#l A = libType Automatic detection
+#o = outdir
+#validateMappings = selective alignment, improves accuracy
+#p = threads
+#--gcBias and --seqBias = corrects for fragment-level GC bias and sequence-specific biases
+
+#Make loop so salmon runs on each sample
+INDEX="yeast_index"
+while read sample; do
+  echo "Quantifying sample: ${sample}"
+
+  salmon quant -i $INDEX -l A \
+    -r ../SRA_files/SRA_FastQ/${sample}.fastq \
+    -p 10 --validateMappings \
+    --gcBias --seqBias \
+    -o quants/${sample}
+done < samples.txt
+#Move quants folder to main folder
+mv quants ..
