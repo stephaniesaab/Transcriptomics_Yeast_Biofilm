@@ -76,10 +76,10 @@ grep "^>" <(gunzip -c Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz) | cut
 #Need to provide:
 #-t = path to transcript fasta (gentrome)
 #-i = name of outdir
-#-kmerLen 31 = kmers of size 31 (max)
+#-kmerLen 23 = kmers of size 23 (minimum acceptable for match)
 #-p = threads
 #-d = decoys
-salmon index -t gentrome.fa.gz -d decoys.txt -p 10 -i yeast_index --kmerLen 31
+salmon index -t gentrome.fa.gz -d decoys.txt -p 10 -i yeast_index --kmerLen 23
 
 #Quantify reads against that index with Salmon
 mkdir salmon_output
@@ -104,5 +104,9 @@ while read sample; do
     --gcBias --seqBias \
     -o quants/${sample}
 done < samples.txt
+
+# Update the multiqc report to run MultiQC on both FastQC and Salmon output folders
+multiqc fastqc_results/ quants/ -n multiqc_report.html
+
 #Move quants folder to main folder
 mv quants ..
